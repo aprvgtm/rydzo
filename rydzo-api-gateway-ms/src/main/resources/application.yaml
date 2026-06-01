@@ -1,0 +1,75 @@
+spring:
+  application:
+    name: rydzo-api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: user-service
+          uri: lb://rydzo-user-service
+          predicates:
+            - Path=/api/v1/users/**
+          filters:
+            - RewritePath=/api/v1/users/(?<path>.*), /$\{path}
+        
+        - id: vendor-service
+          uri: lb://rydzo-vendor-service
+          predicates:
+            - Path=/api/v1/vendors/**
+          filters:
+            - RewritePath=/api/v1/vendors/(?<path>.*), /$\{path}
+        
+        - id: vehicle-service
+          uri: lb://rydzo-vehicle-service
+          predicates:
+            - Path=/api/v1/vehicles/**
+          filters:
+            - RewritePath=/api/v1/vehicles/(?<path>.*), /$\{path}
+        
+        - id: local-carpool-service
+          uri: lb://rydzo-local-carpool-service
+          predicates:
+            - Path=/api/v1/local-rides/**
+          filters:
+            - RewritePath=/api/v1/local-rides/(?<path>.*), /$\{path}
+        
+        - id: intercity-pool-service
+          uri: lb://rydzo-intercity-pool-service
+          predicates:
+            - Path=/api/v1/intercity-rides/**
+          filters:
+            - RewritePath=/api/v1/intercity-rides/(?<path>.*), /$\{path}
+        
+        - id: booking-service
+          uri: lb://rydzo-booking-service
+          predicates:
+            - Path=/api/v1/bookings/**
+          filters:
+            - RewritePath=/api/v1/bookings/(?<path>.*), /$\{path}
+        
+        - id: payment-service
+          uri: lb://rydzo-payment-service
+          predicates:
+            - Path=/api/v1/payments/**
+          filters:
+            - RewritePath=/api/v1/payments/(?<path>.*), /$\{path}
+  
+  security:
+    user:
+      name: admin
+      password: admin123
+
+server:
+  port: 8080
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+
+logging:
+  level:
+    root: INFO
+    org.springframework.cloud.gateway: DEBUG
+

@@ -1,0 +1,281 @@
+version: '3.8'
+
+services:
+  # ============ INFRASTRUCTURE ============
+
+  # PostgreSQL Database (shared for all services)
+  postgres:
+    image: postgres:16-alpine
+    container_name: rydzo-postgres
+    environment:
+      POSTGRES_ROOT_PASSWORD: rydzo_root
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - rydzo-network
+    restart: unless-stopped
+
+  # Eureka Service Registry
+  eureka-server:
+    image: openjdk:21-jdk-slim
+    container_name: rydzo-eureka-server
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_APPLICATION_NAME=rydzo-service-registry
+      - SERVER_PORT=8761
+    volumes:
+      - ./rydzo-service-registry/target/rydzo-service-registry-1.0.0.jar:/app/app.jar
+    working_dir: /app
+    command: java -jar app.jar
+    networks:
+      - rydzo-network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+
+  # ============ API GATEWAY ============
+
+  api-gateway:
+    image: openjdk:21-jdk-slim
+    container_name: rydzo-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_APPLICATION_NAME=rydzo-api-gateway
+      - SERVER_PORT=8080
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    volumes:
+      - ./rydzo-api-gateway/target/rydzo-api-gateway-0.0.1-SNAPSHOT.jar:/app/app.jar
+    working_dir: /app
+    command: java -jar app.jar
+    networks:
+      - rydzo-network
+    restart: unless-stopped
+    depends_on:
+      - eureka-server
+      - postgres
+
+  # ============ MICROSERVICES ============
+
+  # User Service (Port 8081)
+  user-service:
+    image: openjdk:21-jdk-slim
+    container_name: rydzo-user-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_APPLICATION_NAME=rydzo-user-service
+      - SERVER_PORT=8081
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/rydzo_users_db
+      - SPRING_DATASOURCE_USERNAME=rydzo_user
+      - SPRING_DATASOURCE_PASSWORD=rydzo_password
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    volumes:
+      - ./rydzo-user-service/target/rydzo-user-service-1.0.0.jar:/app/app.jar
+    working_dir: /app
+    command: java -jar app.jar
+    networks:
+      - rydzo-network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - eureka-server
+
+  # Vendor Service (Port 8082)
+  vendor-service:
+    image: openjdk:21-jdk-slim
+    container_name: rydzo-vendor-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_APPLICATION_NAME=rydzo-vendor-service
+      - SERVER_PORT=8082
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/rydzo_vendors_db
+      - SPRING_DATASOURCE_USERNAME=rydzo_user
+      - SPRING_DATASOURCE_PASSWORD=rydzo_password
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    volumes:
+      - ./rydzo-vendor-service/target/rydzo-vendor-service-1.0.0.jar:/app/app.jar
+    working_dir: /app
+    command: java -jar app.jar
+    networks:
+      - rydzo-network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - eureka-server
+
+  # Vehicle Service (Port 8083)
+  vehicle-service:
+    image: openjdk:21-jdk-slim
+    container_name: rydzo-vehicle-service
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_APPLICATION_NAME=rydzo-vehicle-service
+      - SERVER_PORT=8083
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/rydzo_vehicles_db
+      - SPRING_DATASOURCE_USERNAME=rydzo_user
+      - SPRING_DATASOURCE_PASSWORD=rydzo_password
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    volumes:
+      - ./rydzo-vehicle-service/target/rydzo-vehicle-service-1.0.0.jar:/app/app.jar
+    working_dir: /app
+    command: java -jar app.jar
+    networks:
+      - rydzo-network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - eureka-server
+
+  # Local Carpool Service (Port 8084)
+  local-carpool-service:
+    image: openjdk:21-jdk-slim
+    container_name: rydzo-local-carpool-service
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_APPLICATION_NAME=rydzo-local-carpool-service
+      - SERVER_PORT=8084
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/rydzo_local_carpool_db
+      - SPRING_DATASOURCE_USERNAME=rydzo_user
+      - SPRING_DATASOURCE_PASSWORD=rydzo_password
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    volumes:
+      - ./rydzo-local-carpool-service/target/rydzo-local-carpool-service-1.0.0.jar:/app/app.jar
+    working_dir: /app
+    command: java -jar app.jar
+    networks:
+      - rydzo-network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - eureka-server
+
+  # Intercity Pool Service (Port 8085)
+  intercity-pool-service:
+    image: openjdk:21-jdk-slim
+    container_name: rydzo-intercity-pool-service
+    ports:
+      - "8085:8085"
+    environment:
+      - SPRING_APPLICATION_NAME=rydzo-intercity-pool-service
+      - SERVER_PORT=8085
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/rydzo_intercity_pool_db
+      - SPRING_DATASOURCE_USERNAME=rydzo_user
+      - SPRING_DATASOURCE_PASSWORD=rydzo_password
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    volumes:
+      - ./rydzo-intercity-pool-service/target/rydzo-intercity-pool-service-1.0.0.jar:/app/app.jar
+    working_dir: /app
+    command: java -jar app.jar
+    networks:
+      - rydzo-network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - eureka-server
+
+  # Booking Service (Port 8086)
+  booking-service:
+    image: openjdk:21-jdk-slim
+    container_name: rydzo-booking-service
+    ports:
+      - "8086:8086"
+    environment:
+      - SPRING_APPLICATION_NAME=rydzo-booking-service
+      - SERVER_PORT=8086
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/rydzo_bookings_db
+      - SPRING_DATASOURCE_USERNAME=rydzo_user
+      - SPRING_DATASOURCE_PASSWORD=rydzo_password
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    volumes:
+      - ./rydzo-booking-service/target/rydzo-booking-service-1.0.0.jar:/app/app.jar
+    working_dir: /app
+    command: java -jar app.jar
+    networks:
+      - rydzo-network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - eureka-server
+
+  # Payment Service (Port 8087)
+  payment-service:
+    image: openjdk:21-jdk-slim
+    container_name: rydzo-payment-service
+    ports:
+      - "8087:8087"
+    environment:
+      - SPRING_APPLICATION_NAME=rydzo-payment-service
+      - SERVER_PORT=8087
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/rydzo_payments_db
+      - SPRING_DATASOURCE_USERNAME=rydzo_user
+      - SPRING_DATASOURCE_PASSWORD=rydzo_password
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    volumes:
+      - ./rydzo-payment-service/target/rydzo-payment-service-1.0.0.jar:/app/app.jar
+    working_dir: /app
+    command: java -jar app.jar
+    networks:
+      - rydzo-network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - eureka-server
+
+  # Notification Service (Port 8088)
+  notification-service:
+    image: openjdk:21-jdk-slim
+    container_name: rydzo-notification-service
+    ports:
+      - "8088:8088"
+    environment:
+      - SPRING_APPLICATION_NAME=rydzo-notification-service
+      - SERVER_PORT=8088
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    volumes:
+      - ./rydzo-notification-service/target/rydzo-notification-service-1.0.0.jar:/app/app.jar
+    working_dir: /app
+    command: java -jar app.jar
+    networks:
+      - rydzo-network
+    restart: unless-stopped
+    depends_on:
+      - eureka-server
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  rydzo-network:
+    driver: bridge
+
+# Usage:
+# Build all services first:
+# mvn clean install -DskipTests (in each service directory)
+#
+# Start all services:
+# docker-compose up -d
+#
+# View logs:
+# docker-compose logs -f api-gateway
+#
+# Stop all services:
+# docker-compose down
+#
+# Remove all data:
+# docker-compose down -v
+#
+# Access Gateway:
+# http://localhost:8080
+#
+# Eureka Dashboard:
+# http://localhost:8761
+
