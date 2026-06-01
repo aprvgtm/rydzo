@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: rydzoapigateway
+
+  security:
+    user:
+      name: apoorv
+      password: admin
